@@ -7,6 +7,10 @@ import (
 	"net"
 )
 
+var (
+	NetDial = net.Dial
+)
+
 type TCPTransport struct {
 	conn      net.Conn
 	responses chan []byte
@@ -14,7 +18,7 @@ type TCPTransport struct {
 }
 
 func NewTCPTransport(addr string) (*TCPTransport, error) {
-	conn, err := net.Dial("tcp", addr)
+	conn, err := NetDial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
@@ -28,12 +32,16 @@ func NewTCPTransport(addr string) (*TCPTransport, error) {
 }
 
 func NewSSLTransport(addr string, config *tls.Config) (*TCPTransport, error) {
-	conn, err := tls.Dial("tcp", addr, config)
+	conn, err := NetDial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
+	tlsConn := tls.Client(conn, config)
+	if err = tlsConn.Handshake(); err != nil {
+		return nil, err
+	}
 	t := &TCPTransport{
-		conn:      conn,
+		conn:      tlsConn,
 		responses: make(chan []byte),
 		errors:    make(chan error),
 	}
